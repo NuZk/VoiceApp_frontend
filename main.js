@@ -42,8 +42,6 @@ log.info(`App Version: ${app.getVersion()}`);
 const store = new Store({
   defaults: {
     windowBounds: { width: 1200, height: 800 },
-    displayName: '',
-    lastRoom: '',
     micMuted: false,
     volume: 100,
     noiseGateEnabled: true,
