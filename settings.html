@@ -232,6 +232,13 @@
             display: block;
         }
 
+        .status-message.info {
+            background: #1a2a3a;
+            border: 1px solid #2a4a5a;
+            color: #8fb4cf;
+            display: block;
+        }
+
         .device-status {
             display: inline-block;
             padding: 4px 8px;
@@ -321,6 +328,25 @@
                     Select the microphone you want to use for voice chat. Changes take effect immediately.
                 </div>
                 <div id="micStatus" class="status-message"></div>
+            </div>
+        </div>
+
+        <!-- Update Settings -->
+        <div class="settings-section">
+            <h2>Updates</h2>
+            <div class="form-group">
+                <label>App Version</label>
+                <div class="info-box">
+                    <strong>Installed:</strong>
+                    <span id="appVersionValue">Loading...</span>
+                </div>
+                <div class="help-text">
+                    Auto-update checks run on startup in production builds.
+                </div>
+            </div>
+            <div class="form-group">
+                <button id="checkUpdates">Check for Updates</button>
+                <div id="updateStatus" class="status-message"></div>
             </div>
         </div>
 

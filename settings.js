@@ -18,6 +18,9 @@ const resetButton = document.getElementById('resetSettings');
 const refreshButton = document.getElementById('refreshDevices');
 const hotkeyStatus = document.getElementById('hotkeyStatus');
 const micStatus = document.getElementById('micStatus');
+const appVersionValue = document.getElementById('appVersionValue');
+const checkUpdatesButton = document.getElementById('checkUpdates');
+const updateStatus = document.getElementById('updateStatus');
 
 // ============================================================================
 // INITIALIZATION
@@ -26,6 +29,7 @@ const micStatus = document.getElementById('micStatus');
 async function init() {
     await loadSettings();
     await loadMicrophones();
+    await loadAppVersion();
     setupEventListeners();
 }
 
@@ -65,6 +69,18 @@ async function loadMicrophones() {
         }
         
         microphoneSelect.innerHTML = '<option value="">Error loading devices</option>';
+    }
+}
+
+async function loadAppVersion() {
+    if (!appVersionValue) return;
+
+    try {
+        const version = await window.electronAPI.getAppVersion();
+        appVersionValue.textContent = version ? `v${version}` : 'Unknown';
+    } catch (error) {
+        console.error('Failed to load app version:', error);
+        appVersionValue.textContent = 'Unknown';
     }
 }
 
@@ -249,6 +265,10 @@ function setupEventListeners() {
         showStatus(micStatus, 'Devices refreshed', 'success');
         setTimeout(() => hideStatus(micStatus), 2000);
     });
+
+    if (checkUpdatesButton) {
+        checkUpdatesButton.addEventListener('click', checkForUpdates);
+    }
     
     // Save button
     saveButton.addEventListener('click', saveSettings);
@@ -268,6 +288,41 @@ function setupEventListeners() {
             showStatus(hotkeyStatus, 'Settings reset. Click "Save Settings" to apply.', 'success');
         }
     });
+}
+
+// ============================================================================
+// UPDATE CHECK
+// ============================================================================
+
+async function checkForUpdates() {
+    if (!checkUpdatesButton || !updateStatus) return;
+
+    try {
+        checkUpdatesButton.disabled = true;
+        checkUpdatesButton.textContent = 'Checking...';
+        showStatus(updateStatus, 'Checking for updates...', 'info');
+
+        const result = await window.electronAPI.checkForUpdates();
+
+        if (!result?.success) {
+            if (result?.reason === 'disabled') {
+                showStatus(updateStatus, 'Auto-updates are disabled. Set AUTO_UPDATE_ENABLED=true.', 'error');
+            } else if (result?.reason === 'dev') {
+                showStatus(updateStatus, 'Update checks only run in production builds.', 'error');
+            } else {
+                showStatus(updateStatus, result?.message || 'Update check failed.', 'error');
+            }
+            return;
+        }
+
+        showStatus(updateStatus, 'Update check started. You will be notified if one is available.', 'success');
+    } catch (error) {
+        console.error('Failed to check for updates:', error);
+        showStatus(updateStatus, 'Update check failed: ' + error.message, 'error');
+    } finally {
+        checkUpdatesButton.disabled = false;
+        checkUpdatesButton.textContent = 'Check for Updates';
+    }
 }
 
 // ============================================================================

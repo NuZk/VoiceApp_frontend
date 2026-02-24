@@ -100,10 +100,16 @@ app.whenReady().then(() => {
 // AUTO-UPDATER
 // ================================================================================
 
-if (autoUpdateEnabled && !isDev) {
+let autoUpdaterInitialized = false;
+
+function initAutoUpdater() {
+  if (autoUpdaterInitialized) {
+    return;
+  }
+
+  autoUpdaterInitialized = true;
   autoUpdater.logger = log;
-  log.info('Auto-update enabled. Checking for updates...');
-  
+
   autoUpdater.on('checking-for-update', () => {
     log.info('Checking for updates...');
   });
@@ -123,6 +129,11 @@ if (autoUpdateEnabled && !isDev) {
   autoUpdater.on('error', (err) => {
     log.error('Update check error:', err);
   });
+}
+
+if (autoUpdateEnabled && !isDev) {
+  initAutoUpdater();
+  log.info('Auto-update enabled. Checking for updates...');
 
   autoUpdater.checkForUpdatesAndNotify();
 
@@ -338,6 +349,28 @@ function unregisterGlobalHotkeys() {
 // App info
 ipcMain.handle('app:getVersion', () => {
   return app.getVersion();
+});
+
+ipcMain.handle('app:checkForUpdates', async () => {
+  if (!autoUpdateEnabled) {
+    log.info('Manual update check skipped (disabled).');
+    return { success: false, reason: 'disabled' };
+  }
+
+  if (isDev) {
+    log.info('Manual update check skipped in development.');
+    return { success: false, reason: 'dev' };
+  }
+
+  try {
+    initAutoUpdater();
+    log.info('Manual update check requested.');
+    await autoUpdater.checkForUpdatesAndNotify();
+    return { success: true };
+  } catch (error) {
+    log.error('Manual update check failed:', error);
+    return { success: false, reason: 'error', message: error.message };
+  }
 });
 
 // Window controls

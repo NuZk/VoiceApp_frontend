@@ -2,6 +2,14 @@
 
 All notable changes to the VoiceApp Desktop client.
 
+## [1.0.6] - 2026-02-24
+
+### Added
+- Settings page section to display the installed app version and trigger a manual update check
+
+### Changed
+- Shared auto-updater initialization so manual update checks use the same listeners
+
 ## [1.0.0] - Production Ready Release
 
 ### Added
