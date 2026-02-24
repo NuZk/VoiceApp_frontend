@@ -39,6 +39,10 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.on('microphone:changed', (event, deviceId) => callback(deviceId));
   },
   
+  // Error handling
+  getErrorDetails: () => ipcRenderer.invoke('error:getDetails'),
+  retryBackendConnection: () => ipcRenderer.invoke('error:retry'),
+  
   // Logging
   log: (level, message) => ipcRenderer.send('log', level, message),
 });

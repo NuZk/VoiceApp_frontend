@@ -150,6 +150,7 @@ if (autoUpdateEnabled && !isDev) {
 
 let mainWindow = null;
 let settingsWindow = null;
+let errorInfo = null;
 
 function createWindow() {
   const bounds = store.get('windowBounds');
@@ -190,9 +191,13 @@ function createWindow() {
   });
 
   // Load backend URL
+  log.info(`Loading backend: ${backendUrl}`);
   mainWindow.loadURL(backendUrl).catch(err => {
-    log.error('Failed to load URL:', err);
-    // Show error dialog or fallback page
+    log.error('Backend load failed:', err.message);
+    errorInfo = { message: err.message };
+    mainWindow.loadFile('error.html').catch(e => {
+      log.error('Failed to load error page:', e.message);
+    });
   });
 
   // Development tools
@@ -476,6 +481,41 @@ ipcMain.handle('microphone:update', async (event, deviceLabel) => {
   } catch (error) {
     log.error('Error updating microphone:', error);
     return { success: false, error: error.message };
+  }
+});
+
+// Error handling
+ipcMain.handle('error:getDetails', () => {
+  return errorInfo || { message: 'Unknown error' };
+});
+
+ipcMain.handle('error:retry', async () => {
+  try {
+    log.info('[RETRY] Attempting to load backend...');
+    
+    if (!mainWindow || mainWindow.isDestroyed()) {
+      log.error('[RETRY] Window destroyed');
+      return { success: false, error: 'Window destroyed' };
+    }
+    
+    // Try to load the backend URL
+    mainWindow.loadURL(backendUrl).catch(err => {
+      log.error('[RETRY] Backend load failed:', err.message);
+      errorInfo = { message: err.message };
+      // Show error page again
+      mainWindow.loadFile('error.html').catch(e => {
+        log.error('[RETRY] Failed to show error page:', e.message);
+      });
+    });
+    
+    // Return success here - actual result will be shown on screen
+    log.info('[RETRY] Load request sent');
+    errorInfo = null;
+    return { success: true };
+  } catch (err) {
+    log.error('[RETRY] Exception in retry handler:', err.message);
+    errorInfo = { message: err.message };
+    return { success: false, error: err.message };
   }
 });
 
