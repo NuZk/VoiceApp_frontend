@@ -19,7 +19,7 @@ require('dotenv').config({
 const isDev = process.env.NODE_ENV === 'development';
 const backendUrl = process.env.BACKEND_URL || 'https://voiceapp.nuzk-server.com';
 const openDevTools = process.env.OPEN_DEVTOOLS === 'true';
-const autoUpdateEnabled = process.env.AUTO_UPDATE_ENABLED === 'true';
+const autoUpdateEnabled = process.env.AUTO_UPDATE_ENABLED !== 'false';
 const hotkeyToggleMute = process.env.HOTKEY_TOGGLE_MUTE || 'CommandOrControl+Shift+M';
 
 // ================================================================================
@@ -28,12 +28,13 @@ const hotkeyToggleMute = process.env.HOTKEY_TOGGLE_MUTE || 'CommandOrControl+Shi
 
 // Configure logging
 log.transports.file.level = process.env.LOG_LEVEL || 'info';
-log.transports.console.level = isDev ? 'debug' : 'warn';
+log.transports.console.level = process.env.LOG_LEVEL || (isDev ? 'debug' : 'warn');
 
 log.info('=== VoiceApp Desktop Starting ===');
 log.info(`Environment: ${isDev ? 'Development' : 'Production'}`);
 log.info(`Backend URL: ${backendUrl}`);
 log.info(`App Version: ${app.getVersion()}`);
+log.info(`Auto-Update Enabled: ${autoUpdateEnabled}`);
 
 // ================================================================================
 // PERSISTENT STORAGE
@@ -83,7 +84,8 @@ app.whenReady().then(() => {
           'Content-Security-Policy': [
             "default-src 'self'; " +
             "script-src 'self' 'unsafe-inline' 'unsafe-eval'; " +
-            "style-src 'self' 'unsafe-inline'; " +
+            "style-src 'self' 'unsafe-inline' https://fonts.bunny.net; " +
+            "font-src 'self' https://fonts.bunny.net data:; " +
             "img-src 'self' data: https:; " +
             "connect-src 'self' wss: https:; " +
             "media-src 'self' blob:; "
@@ -100,18 +102,33 @@ app.whenReady().then(() => {
 
 if (autoUpdateEnabled && !isDev) {
   autoUpdater.logger = log;
+  log.info('Auto-update enabled. Checking for updates...');
+  
+  autoUpdater.on('checking-for-update', () => {
+    log.info('Checking for updates...');
+  });
+
+  autoUpdater.on('update-available', (info) => {
+    log.info(`Update available: ${info.version}. Downloading...`);
+  });
+
+  autoUpdater.on('update-not-available', (info) => {
+    log.info(`No update available. Current version: ${info.version}`);
+  });
+
+  autoUpdater.on('update-downloaded', (info) => {
+    log.info(`Update downloaded: ${info.version}. Will install on quit.`);
+  });
+
+  autoUpdater.on('error', (err) => {
+    log.error('Update check error:', err);
+  });
+
   autoUpdater.checkForUpdatesAndNotify();
-
-  autoUpdater.on('update-available', () => {
-    log.info('Update available. Downloading...');
-  });
-
-  autoUpdater.on('update-downloaded', () => {
-    log.info('Update downloaded. Will install on quit.');
-  });
 
   // Check for updates every hour
   setInterval(() => {
+    log.debug('Hourly update check...');
     autoUpdater.checkForUpdatesAndNotify();
   }, 60 * 60 * 1000);
 }
@@ -168,7 +185,7 @@ function createWindow() {
   });
 
   // Development tools
-  if (openDevTools && isDev) {
+  if (openDevTools) {
     mainWindow.webContents.openDevTools();
   }
 
