@@ -28,6 +28,7 @@
     "electron-builder": "^24.9.1"
   },
   "build": {
+    "artifactName": "${productName}-Setup-${version}.${ext}",
     "appId": "com.voiceapp.desktop",
     "productName": "VoiceApp",
     "directories": {
@@ -64,6 +65,7 @@
       "icon": "icon.png"
     },
     "nsis": {
+      "disableWebInstaller": true,
       "oneClick": false,
       "allowToChangeInstallationDirectory": true,
       "createDesktopShortcut": true,

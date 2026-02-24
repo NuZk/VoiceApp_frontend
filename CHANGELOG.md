@@ -9,6 +9,7 @@ All notable changes to the VoiceApp Desktop client.
 
 ### Changed
 - Shared auto-updater initialization so manual update checks use the same listeners
+- Standardized installer artifact naming and disabled NSIS web installer
 
 ## [1.0.0] - Production Ready Release
 
