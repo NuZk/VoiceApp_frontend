@@ -2,6 +2,14 @@
 
 All notable changes to the VoiceApp Desktop client.
 
+## [1.0.14] - 2026-03-12
+
+### Added
+- TODO
+
+### Changed
+- TODO
+
 ## [1.0.13] - 2026-03-12
 
 ### Added
@@ -112,7 +120,7 @@ All notable changes to the VoiceApp Desktop client.
 - `settings:getAll` - Get all settings
 - `log` - Log from renderer process
 
-#### IPC Messages (Main â†’ Renderer)
+#### IPC Messages (Main Ã¢â€ â€™ Renderer)
 - `hotkey:toggle-mute` - Global mute hotkey triggered
 
 #### Exposed APIs (via preload.js)
