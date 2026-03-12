@@ -1,7 +1,7 @@
 {
   "name": "voiceapp-desktop",
   "productName": "VoiceApp",
-  "version": "1.0.10",
+  "version": "1.0.11",
   "description": "Desktop client for VoiceApp - LiveKit-based voice rooms",
   "main": "main.js",
   "author": "Joni Nuutinen",

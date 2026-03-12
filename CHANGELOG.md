@@ -2,6 +2,12 @@
 
 All notable changes to the VoiceApp Desktop client.
 
+## [1.0.11] - 2026-03-12
+
+### Changed
+- Removed modifier key requirement for global hotkeys - single-key shortcuts are now supported
+- Updated hotkey validation to accept both single keys and key combinations
+
 ## [1.0.6] - 2026-02-24
 
 ### Added

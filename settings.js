@@ -184,12 +184,6 @@ function handleKeyDown(event) {
         keyParts.push(normalizedKey);
     }
     
-    // Must have at least one modifier for global hotkeys
-    if (modifiers.length === 0) {
-        hotkeyInput.value = 'Hotkeys must include a modifier key (Ctrl, Alt, Shift, or Cmd)';
-        return;
-    }
-    
     // Create the hotkey string
     const hotkeyString = keyParts.join('+');
     
@@ -210,9 +204,9 @@ function handleKeyUp(event) {
 }
 
 function isValidHotkey(hotkey) {
-    // Basic validation - must have at least one modifier and one key
+    // Basic validation - must contain at least one non-empty key part
     const parts = hotkey.split('+');
-    return parts.length >= 2;
+    return parts.length >= 1 && parts.every(part => part.trim().length > 0);
 }
 
 function formatHotkeyDisplay(hotkey) {
