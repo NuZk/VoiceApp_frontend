@@ -33,6 +33,39 @@ contextBridge.exposeInMainWorld('electronAPI', {
   
   // Microphone selection
   updateMicrophone: (deviceId) => ipcRenderer.invoke('microphone:update', deviceId),
+
+  // Deep links
+  onDeepLinkJoinCode: (callback) => {
+    if (typeof callback !== 'function') {
+      return () => {};
+    }
+
+    let lastDeliveredCode = null;
+
+    const deliverCode = (code) => {
+      if (typeof code !== 'string' || !code) {
+        return;
+      }
+
+      if (code === lastDeliveredCode) {
+        return;
+      }
+
+      lastDeliveredCode = code;
+      callback(code);
+    };
+
+    const listener = (event, joinCode) => {
+      deliverCode(joinCode);
+    };
+
+    ipcRenderer.on('deep-link:join-code', listener);
+    ipcRenderer.invoke('deep-link:consume-pending-join-code').then(deliverCode).catch(() => {});
+
+    return () => {
+      ipcRenderer.removeListener('deep-link:join-code', listener);
+    };
+  },
   
   // Listen for microphone change events
   onMicrophoneChanged: (callback) => {

@@ -21,6 +21,9 @@ const backendUrl = process.env.BACKEND_URL || 'https://voiceapp.nuzk-server.com'
 const openDevTools = process.env.OPEN_DEVTOOLS === 'true';
 const autoUpdateEnabled = process.env.AUTO_UPDATE_ENABLED !== 'false';
 const hotkeyToggleMute = process.env.HOTKEY_TOGGLE_MUTE || 'CommandOrControl+Shift+M';
+const APP_NAME = app.getName() || 'VoiceApp';
+const DEEP_LINK_PROTOCOL = 'voiceapp:';
+const DEEP_LINK_IPC_CHANNEL = 'deep-link:join-code';
 
 // ================================================================================
 // LOGGING
@@ -30,11 +33,159 @@ const hotkeyToggleMute = process.env.HOTKEY_TOGGLE_MUTE || 'CommandOrControl+Shi
 log.transports.file.level = process.env.LOG_LEVEL || 'info';
 log.transports.console.level = process.env.LOG_LEVEL || (isDev ? 'debug' : 'warn');
 
-log.info('=== VoiceApp Desktop Starting ===');
+log.info(`=== ${APP_NAME} Desktop Starting ===`);
 log.info(`Environment: ${isDev ? 'Development' : 'Production'}`);
 log.info(`Backend URL: ${backendUrl}`);
 log.info(`App Version: ${app.getVersion()}`);
 log.info(`Auto-Update Enabled: ${autoUpdateEnabled}`);
+
+// ================================================================================
+// SINGLE INSTANCE + DEEP LINKS
+// ================================================================================
+
+let pendingJoinCode = null;
+
+function extractDeepLinkUrlFromArgv(argv = []) {
+  return argv.find((value) => typeof value === 'string' && value.toLowerCase().startsWith('voiceapp://')) || null;
+}
+
+function parseJoinCodeFromDeepLink(urlString) {
+  if (!urlString || typeof urlString !== 'string') {
+    return null;
+  }
+
+  try {
+    const parsedUrl = new URL(urlString);
+    if (parsedUrl.protocol !== DEEP_LINK_PROTOCOL) {
+      return null;
+    }
+
+    if ((parsedUrl.hostname || '').toLowerCase() !== 'join') {
+      return null;
+    }
+
+    let joinCode = null;
+    const pathParts = parsedUrl.pathname.split('/').filter(Boolean);
+
+    if (pathParts.length > 0) {
+      joinCode = pathParts[0];
+    } else {
+      joinCode = parsedUrl.searchParams.get('code');
+    }
+
+    const normalizedCode = (joinCode || '').trim().toUpperCase();
+    if (!/^[A-Z]{4}$/.test(normalizedCode)) {
+      return null;
+    }
+
+    return normalizedCode;
+  } catch (error) {
+    log.warn(`Failed to parse deep-link URL: ${urlString}`, error.message);
+    return null;
+  }
+}
+
+function focusMainWindow() {
+  if (!mainWindow || mainWindow.isDestroyed()) {
+    return;
+  }
+
+  if (mainWindow.isMinimized()) {
+    mainWindow.restore();
+  }
+
+  if (!mainWindow.isVisible()) {
+    mainWindow.show();
+  }
+
+  mainWindow.focus();
+}
+
+function dispatchPendingJoinCode() {
+  if (!pendingJoinCode || !mainWindow || mainWindow.isDestroyed() || !mainWindow.webContents) {
+    return;
+  }
+
+  mainWindow.webContents.send(DEEP_LINK_IPC_CHANNEL, pendingJoinCode);
+  log.info(`Dispatched deep-link join code: ${pendingJoinCode}`);
+}
+
+function getJoinRouteUrl(joinCode) {
+  try {
+    return new URL(`/join/${joinCode}`, backendUrl).toString();
+  } catch (error) {
+    log.warn(`Failed to construct join route URL for code ${joinCode}:`, error.message);
+    return null;
+  }
+}
+
+function navigateToJoinCode(joinCode) {
+  if (!joinCode || !mainWindow || mainWindow.isDestroyed() || !mainWindow.webContents) {
+    return;
+  }
+
+  const targetUrl = getJoinRouteUrl(joinCode);
+  if (!targetUrl) {
+    return;
+  }
+
+  const currentUrl = mainWindow.webContents.getURL();
+  if (currentUrl === targetUrl) {
+    return;
+  }
+
+  mainWindow.loadURL(targetUrl).catch((error) => {
+    log.error(`Failed to navigate to join route (${targetUrl}):`, error.message);
+  });
+}
+
+function queueJoinCodeFromUrl(urlString, source) {
+  const joinCode = parseJoinCodeFromDeepLink(urlString);
+
+  if (!joinCode) {
+    log.warn(`Ignored invalid deep-link payload from ${source}: ${urlString}`);
+    return;
+  }
+
+  pendingJoinCode = joinCode;
+  log.info(`Queued deep-link join code from ${source}: ${joinCode}`);
+  navigateToJoinCode(joinCode);
+  dispatchPendingJoinCode();
+}
+
+function registerAppProtocolClient() {
+  try {
+    if (process.defaultApp && process.argv.length >= 2) {
+      app.setAsDefaultProtocolClient('voiceapp', process.execPath, [path.resolve(process.argv[1])]);
+    } else {
+      app.setAsDefaultProtocolClient('voiceapp');
+    }
+  } catch (error) {
+    log.warn('Protocol client registration failed:', error.message);
+  }
+}
+
+const singleInstanceLock = app.requestSingleInstanceLock();
+if (!singleInstanceLock) {
+  app.quit();
+}
+
+const initialDeepLinkUrl = extractDeepLinkUrlFromArgv(process.argv);
+
+app.on('second-instance', (event, argv) => {
+  focusMainWindow();
+
+  const deepLinkUrl = extractDeepLinkUrlFromArgv(argv);
+  if (deepLinkUrl) {
+    queueJoinCodeFromUrl(deepLinkUrl, 'second-instance');
+  }
+});
+
+app.on('open-url', (event, urlString) => {
+  event.preventDefault();
+  focusMainWindow();
+  queueJoinCodeFromUrl(urlString, 'open-url');
+});
 
 // ================================================================================
 // PERSISTENT STORAGE
@@ -160,7 +311,7 @@ function createWindow() {
     height: bounds.height,
     minWidth: 800,
     minHeight: 600,
-    title: 'VoiceApp',
+    title: APP_NAME,
     backgroundColor: '#1a1a1a',
     webPreferences: {
       nodeIntegration: false,
@@ -193,6 +344,11 @@ function createWindow() {
   // Load backend URL
   log.info(`Loading backend: ${backendUrl}`);
   mainWindow.loadURL(backendUrl).catch(err => {
+    if (err && typeof err.message === 'string' && err.message.includes('ERR_ABORTED')) {
+      log.debug('Initial load aborted by a follow-up navigation (expected during deep-link handling).');
+      return;
+    }
+
     log.error('Backend load failed:', err.message);
     errorInfo = { message: err.message };
     mainWindow.loadFile('error.html').catch(e => {
@@ -204,6 +360,10 @@ function createWindow() {
   if (openDevTools) {
     mainWindow.webContents.openDevTools();
   }
+
+  mainWindow.webContents.on('did-finish-load', () => {
+    dispatchPendingJoinCode();
+  });
 
   // Handle navigation (prevent external navigation)
   mainWindow.webContents.on('will-navigate', (event, url) => {
@@ -238,7 +398,7 @@ function createSettingsWindow() {
     height: 700,
     minWidth: 600,
     minHeight: 600,
-    title: 'Settings - VoiceApp',
+    title: `Settings - ${APP_NAME}`,
     backgroundColor: '#1a1a1a',
     resizable: true,
     minimizable: true,
@@ -354,6 +514,12 @@ function unregisterGlobalHotkeys() {
 // App info
 ipcMain.handle('app:getVersion', () => {
   return app.getVersion();
+});
+
+ipcMain.handle('deep-link:consume-pending-join-code', () => {
+  const joinCode = pendingJoinCode;
+  pendingJoinCode = null;
+  return joinCode;
 });
 
 ipcMain.handle('app:checkForUpdates', async () => {
@@ -524,9 +690,15 @@ ipcMain.handle('error:retry', async () => {
 // ================================================================================
 
 app.whenReady().then(() => {
+  registerAppProtocolClient();
   createWindow();
   registerGlobalHotkeys();
   createApplicationMenu();
+
+  if (initialDeepLinkUrl) {
+    queueJoinCodeFromUrl(initialDeepLinkUrl, 'startup');
+  }
+
   log.info('Application ready');
 });
 

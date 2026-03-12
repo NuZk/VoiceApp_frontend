@@ -1,8 +1,22 @@
-# Changelog
+﻿# Changelog
 
 All notable changes to the VoiceApp Desktop client.
 
+## [1.0.12] - 2026-03-12
+
+### Added
+- Desktop deep-link fallback navigation to `${BACKEND_URL}/join/{CODE}` so valid links are visible immediately in app even before web renderer listener updates are deployed
+
+### Changed
+- Improved startup/deep-link handoff reliability by treating expected `ERR_ABORTED` navigation interruptions as non-fatal during route transitions
+- Centralized desktop app naming in main process constants for easier future app-name updates
+
 ## [1.0.11] - 2026-03-12
+
+### Added
+- Desktop deep-link support for `voiceapp://join/{CODE}` and `voiceapp://join?code={CODE}`
+- Single-instance deep-link forwarding via IPC (`deep-link:join-code`) for already running app instances
+- Preload bridge `window.electronAPI.onDeepLinkJoinCode(callback)` with unsubscribe cleanup
 
 ### Changed
 - Removed modifier key requirement for global hotkeys - single-key shortcuts are now supported
@@ -90,7 +104,7 @@ All notable changes to the VoiceApp Desktop client.
 - `settings:getAll` - Get all settings
 - `log` - Log from renderer process
 
-#### IPC Messages (Main → Renderer)
+#### IPC Messages (Main â†’ Renderer)
 - `hotkey:toggle-mute` - Global mute hotkey triggered
 
 #### Exposed APIs (via preload.js)
@@ -120,3 +134,4 @@ All notable changes to the VoiceApp Desktop client.
 - No global hotkeys
 - No logging
 - No auto-updates
+

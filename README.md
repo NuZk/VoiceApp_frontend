@@ -175,6 +175,54 @@ if (window.electronHotkeys) {
 }
 ```
 
+## Deep Links (`voiceapp://`)
+
+Desktop builds register the custom protocol `voiceapp://` so the web app can open the installed client directly into the join-by-code flow.
+
+### Supported Deep-Link Formats
+
+- `voiceapp://join/ABCD`
+- `voiceapp://join?code=ABCD`
+
+Rules:
+- Code is normalized to uppercase
+- Code must match `^[A-Z]{4}$`
+- Invalid payloads are ignored safely
+
+### Renderer Integration (Web App / Home Page)
+
+Use the preload bridge in your Home page startup and continue your existing modal-based join flow:
+
+```javascript
+let unsubscribeDeepLink = null;
+
+if (window.electronAPI?.onDeepLinkJoinCode) {
+  unsubscribeDeepLink = window.electronAPI.onDeepLinkJoinCode((code) => {
+    openJoinCodeModal();
+    setJoinCodeInput(code);
+
+    // Keep existing checks/flow:
+    // - Do NOT auto-connect if password/name is still required
+    // - Continue normal join-by-code submit path
+  });
+}
+
+// On teardown/unmount:
+unsubscribeDeepLink?.();
+```
+
+### Web Fallback (Non-installed Users)
+
+Keep sharing links canonically as:
+
+`https://<your-domain>/join/{CODE}`
+
+In browser UI, “Open In App” can attempt:
+
+`voiceapp://join/{CODE}`
+
+If the desktop app is not installed, user stays in browser and continues web join flow.
+
 ## Persistent Settings
 
 Settings are automatically persisted using `electron-store`. The following settings are saved:
