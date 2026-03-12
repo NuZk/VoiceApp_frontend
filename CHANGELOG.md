@@ -1,6 +1,14 @@
-﻿# Changelog
+# Changelog
 
 All notable changes to the VoiceApp Desktop client.
+
+## [1.0.13] - 2026-03-12
+
+### Added
+- TODO
+
+### Changed
+- TODO
 
 ## [1.0.12] - 2026-03-12
 
@@ -134,4 +142,5 @@ All notable changes to the VoiceApp Desktop client.
 - No global hotkeys
 - No logging
 - No auto-updates
+
 
